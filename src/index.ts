@@ -89,23 +89,26 @@ export default async function gen(
   }
   const servicesPath = swagger2tsConfig['-o'] || '';
   // IMP: 加载新版
-  const code: number = await new Promise(rs => {
-    const loader = (cb: (err: any, res: { body?: SwaggerJson }) => any) => {
-      remoteSwaggerUrl
-        ? remoteSwaggerUrl.match(RemoteUrlReg)
-          ? request.get(
-              {
-                ...requestConfig,
-                url: remoteSwaggerUrl
-              },
-              (err, res) => cb(err, { body: JSON.parse(res.body) })
-            )
-          : cb(undefined, { body: require(remoteSwaggerUrl) as SwaggerJson })
-        : cb(undefined, {});
+  const code: number = await new Promise(async rs => {
+    const loader = async (cb: (err: any, res: { body?: SwaggerJson }) => any) => {
+      if (remoteSwaggerUrl) {
+        if (remoteSwaggerUrl.match(RemoteUrlReg)) {
+          request.get(
+            {
+              ...requestConfig,
+              url: remoteSwaggerUrl
+            },
+            (err, res) => cb(err, { body: JSON.parse(res.body) })
+          );
+        } else {
+          cb(undefined, { body: require(remoteSwaggerUrl) as SwaggerJson });
+        }
+      } else {
+        cb(undefined, {});
+      }
     };
-    loader(async (err, { body: newSwagger }) => {
+    await loader(async (err, { body: newSwagger }) => {
       if (err) {
-        console.log(chalk.red(`[ERROR]: 下载 Swagger JSON 失败: ${err}`));
         rs(1);
       } else {
         if (!fs.existsSync(servicesPath)) {
